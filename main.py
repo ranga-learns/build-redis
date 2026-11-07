@@ -3,7 +3,7 @@ import sys
 
 def encode_bulk_string(s):
     if s is None:
-        return "$-1\r\n"
+        return encode_null_bulk_string()
 
     payload = s.encode("utf-8")
     return f"${len(payload)}\r\n{s}\r\n"
@@ -11,6 +11,18 @@ def encode_bulk_string(s):
 
 def encode_simple_string(s):
     return f"+{s}\r\n"
+
+
+def encode_integer(n):
+    return f":{n}\r\n"
+
+
+def encode_null_bulk_string():
+    return "-1\r\n"
+
+
+def encode_error(s):
+    return f"-{s}\r\n"
 
 
 def cmd_ping(args):
@@ -22,21 +34,25 @@ def cmd_ping(args):
 
 def cmd_echo(args):
     if len(args) == 0:
-        #TODO: Raise error, echo needs 1 argument
-        return
+        return encode_error("ERR wrong number of arguments for 'ECHO' command")
     return encode_bulk_string(args[0])
+
+
+def cmd_docs(args):
+    return encode_simple_string("OK")
 
 
 def handle_command(parts):
     """Process a Redis command and return the RESP response."""
     cmd, args = parts[0].upper(), parts[1:]
 
-    HANDLERS = {"PING": cmd_ping, "ECHO": cmd_echo}
+    HANDLERS = {"PING": cmd_ping, "ECHO": cmd_echo, "COMMAND": cmd_docs}
 
-    if cmd in HANDLERS:
-        return HANDLERS[cmd](args)
+    handler = HANDLERS.get(cmd)
+    if handler:
+        return handler(args)
 
-    return "-ERR unknown command\r\n"
+    return encode_error(f"ERR unknown command '{cmd}'")
 
 
 def main():
