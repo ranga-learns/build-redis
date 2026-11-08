@@ -42,6 +42,16 @@ def cmd_docs(args):
     return encode_simple_string("OK")
 
 
+def check_arity(cmd, args):
+    ARITY = {"PING": (0, 1), "ECHO": (1, 1)}
+    lo, hi = ARITY[cmd]
+    if len(args) < lo or len(args) > hi:
+        return encode_error(
+            f"ERR wrong number of arguments for '{cmd}' command"
+        )
+    return
+
+
 def handle_command(parts):
     """Process a Redis command and return the RESP response."""
     cmd, args = parts[0].upper(), parts[1:]
@@ -50,6 +60,9 @@ def handle_command(parts):
 
     handler = HANDLERS.get(cmd)
     if handler:
+        arity_validation = check_arity(cmd, args)
+        if arity_validation:
+            return arity_validation
         return handler(args)
 
     return encode_error(f"ERR unknown command '{cmd}'")
@@ -59,6 +72,8 @@ def main():
     for line in sys.stdin:
         line = line.strip()
         if not line:
+            continue
+        if line == "":
             continue
         args = parse_args(line)
         response = handle_command(args)
